@@ -1,0 +1,44 @@
+{
+  "name": "Appointment Reminder Automation",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }] } },
+      "id": "node-appt-001", "name": "Schedule — Daily 9AM", "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1, "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": { "mode": "id", "value": "YOUR_GOOGLE_SHEET_ID" },
+        "sheetName": { "mode": "name", "value": "Appointments" },
+        "options": {}
+      },
+      "id": "node-appt-002", "name": "Read Appointments", "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4, "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tomorrow = new Date();\ntomorrow.setDate(tomorrow.getDate() + 1);\nconst tStr = tomorrow.toISOString().split('T')[0];\nconst items = $input.all();\nconst filtered = items.filter(item => {\n  const apptDate = item.json['Appointment Date'];\n  return apptDate === tStr && item.json['Reminder Sent'] !== 'Yes';\n});\nreturn filtered;"
+      },
+      "id": "node-appt-003", "name": "Filter Tomorrow's Appointments", "type": "n8n-nodes-base.code",
+      "typeVersion": 2, "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "your@email.com",
+        "toEmail": "={{ $json.Email }}",
+        "subject": "Reminder: Your Appointment Tomorrow",
+        "emailType": "text",
+        "message": "Dear {{ $json['Client Name'] }},\n\nThis is a friendly reminder that you have an appointment tomorrow:\n\nService: {{ $json.Service }}\nDate: {{ $json['Appointment Date'] }}\nTime: {{ $json.Time }}\n\nPlease contact us if you need to reschedule.\n\nThank you!"
+      },
+      "id": "node-appt-004", "name": "Send Reminder Email", "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2, "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Schedule — Daily 9AM": { "main": [[{ "node": "Read Appointments", "type": "main", "index": 0 }]] },
+    "Read Appointments": { "main": [[{ "node": "Filter Tomorrow's Appointments", "type": "main", "index": 0 }]] },
+    "Filter Tomorrow's Appointments": { "main": [[{ "node": "Send Reminder Email", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
